@@ -39,12 +39,13 @@ def lsb_apply(file: str, watermark: str):
         sound_new.writeframes(byte_new)  # écriture frame
 
 
-def lsb_read(file: str, stop_on_end: bool = True):
+def lsb_read(file: str, stop_on_end: bool = True, brute_force: bool = False):
     """
     Lit le watermark cache dans un fichier par lsb
     :param file: Nom du fichier a decoder (Sans extension)
     :param stop_on_end: On arrete quand on decouvre un caractere de fin de ligne, si le fichier est corrompu ou modifie
     il vaut mieux le mettre a "False" et en lire l'ensemble des repetitions
+    :param brute_force: On teste les 8 possibilites si le fichier a ete mal coupe
     """
     sound = wave.open(file + '.wav', 'r')  # lecture d'un fichier audio
 
@@ -61,6 +62,29 @@ def lsb_read(file: str, stop_on_end: bool = True):
         if bin_str[-8:] == '00000000' and stop_on_end:
             break
 
+    if brute_force:
+        for k in range(0, 8):
+            # Bin to STRING:
+            byte_list = []
+            for i in range(0, len(bin_str) // 8):
+                byte_list.append(0)
+                for j in range(0, 8):
+                    # Simple transformation d'un octet binaire en octet int
+                    if bin_str[i * 8 + j] == '1':
+                        byte_list[-1] += 2 ** (7 - j)
+
+            bin_str = bin_str[1:]  # On enleve le premier bit pour la prochaine iteration
+
+            # Recreation d'un byte a partir des octets reformes
+            try:
+                watermark = bytes(byte_list).decode("utf-8")
+                print("Watermark with " + str(k) + " offset is: " + watermark)
+            except:
+                print("Watermark with " + str(k) + " offset CORRUPTED")
+
+        return ''
+
+    # Else, simple
     # Bin to STRING:
     byte_list = []
     for i in range(0, len(bin_str)//8):
@@ -71,7 +95,11 @@ def lsb_read(file: str, stop_on_end: bool = True):
                 byte_list[-1] += 2**(7-j)
 
     # Recreation d'un byte a partir des octets reformes
-    watermark = bytes(byte_list).decode("utf-8")
+    try:
+        watermark = bytes(byte_list).decode("utf-8")
+        print("Watermark is: " + watermark)
+    except:
+        print("Watermark CORRUPTED")
 
     print("Watermark is: " + watermark)
     return watermark
@@ -79,5 +107,5 @@ def lsb_read(file: str, stop_on_end: bool = True):
 
 lsb_apply('Audio_files/wilhelm', 'Du vol Monsieur')
 
-lsb_read('Audio_files/wilhelm_watermarked_lsb', True)
+lsb_read('Audio_files/wilhelm_watermarked_lsb', True, True)
 
