@@ -13,15 +13,11 @@ def load( nomfichier ):
     signal = spf.readframes(-1)
     signal = np.fromstring(signal, "Int16")
 
-
-    # If Stereo
-    if spf.getnchannels() == 2:
-        print("Just mono files")
-        sys.exit(0)
+        
 
     plt.figure(1)
-    plt.title("Signal Wave...")
+    plt.title(nomfichier)
     plt.plot(signal)
     plt.show()
 
-load("son")
+load("FlowingWater")
