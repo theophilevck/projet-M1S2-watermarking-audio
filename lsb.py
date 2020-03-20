@@ -34,7 +34,7 @@ def lsb_apply(file: str, watermark: str):
 
         byte_4 = sound.readframes(1)
         # On met le dernier bit du sample a notre valeur du watermark...
-        byte_new = bytes([byte_4[0], byte_4[1], byte_4[2], byte_4[3] - byte_4[3] % 2 + bit])
+        byte_new = bytes([byte_4[0] - byte_4[0] % 2 + bit, byte_4[1], byte_4[2], byte_4[3]])
 
         sound_new.writeframes(byte_new)  # écriture frame
 
@@ -56,7 +56,7 @@ def lsb_read(file: str, stop_on_end: bool = True, brute_force: bool = False):
         byte_4 = sound.readframes(1)
 
         # On ajoute le LSB du sample a notre chaine
-        bin_str += str(byte_4[3] % 2)
+        bin_str += str(byte_4[0] % 2)
 
         # Si nous decouvrons un caractere de fin de ligne, on coupe (ATTENTION, POSSIBLES ERREURS DE LECTURES ICI)
         if bin_str[-8:] == '00000000' and stop_on_end:
