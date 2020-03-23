@@ -5,10 +5,12 @@ import sys
 
 
 def loadcompare( nomfichier: str, nomfichierwatermark: str ):
-    folder="Audio_files/"
+    folder="Audio_files/Spectrology/"
     extention=".wav"
+    extention2=".mp3"
     path1=folder+nomfichier+extention
     path2=folder+nomfichierwatermark+extention
+    
 
     spf1 = wave.open(path1, "r")
     spf2 = wave.open(path2, "r")
@@ -42,7 +44,7 @@ def loadcompare( nomfichier: str, nomfichierwatermark: str ):
 
     
 def load( nomfichier: str ):
-    folder="Audio_files/"
+    folder="Audio_files/Spectrology/" #/Spectrology/
     extention=".wav"
     path1=folder+nomfichier+extention
 
@@ -69,6 +71,7 @@ def freqsignal (nomfichier: str):
     plt.show()
 
 def FFTsignal (nomfichier: str):
+
     spf=load( nomfichier )
     fs = spf.getframerate()
     # Extract Raw Audio from Wav File
@@ -78,8 +81,9 @@ def FFTsignal (nomfichier: str):
 
 
     Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
-
+    
     fft = np.fft.fft(signal1)
+    
 
 
     T = Time[1] - Time[0]  # sampling interval 
@@ -87,17 +91,22 @@ def FFTsignal (nomfichier: str):
 
     # 1/T = frequency
     f = np.linspace(0, 1 / T, N)
-
+    
     plt.figure(figsize = (10, 5))
     plt.title( nomfichier+' FFT' )
     plt.ylabel("Amplitude")
     plt.xlabel("Frequency [Hz]")
-    plt.bar(f[:N // 2], np.abs(fft)[:N // 2] * 1 / N, width=1.5)  # 1 / N is a normalization factor
+    plt.plot(np.abs(fft)[:N // 2] * 1 / N,linewidth=0.5)
+    #plt.bar(f[:N // 2], np.abs(fft)[:N // 2] * 1 / N, width=1.5)  # 1 / N is a normalization factor// trop long
+
+    
+
     plt.show() 
 
 
     
-    
-
-FFTsignal("wilhelm_watermarked_lsb")
+#freqsignal("sample-music-clean")
+#freqsignal("Mix2")
+#loadcompare("sample-music-clean","Mix2")
+FFTsignal("Mix2")
 
