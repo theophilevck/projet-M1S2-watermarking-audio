@@ -1,6 +1,9 @@
 from PIL import Image, ImageOps
 import wave, math, array, argparse, sys, timeit
 
+"""
+definition des paramètres pour utiliser le programme spectrology.py : ./spectrology -r -i -o -t
+"""
 def parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("INPUT", help="Name of the image to be convected.")
@@ -13,6 +16,7 @@ def parser():
     parser.add_argument("-s", "--sampling", help="Sampling rate. Default value: 44100.", type=int)
     args = parser.parse_args()
 
+#valeurs par défaut pour les fréquences, rotation, inversion des couleurs et pixels
     minfreq = 200
     maxfreq = 20000
     wavrate = 44100
@@ -44,26 +48,39 @@ def parser():
 
     return (args.INPUT, output, minfreq, maxfreq, pxs, wavrate, rotate, invert)
 
+"""
+Conversion image vers .wav ==> spectogram
+"""
 def convert(inpt, output, minfreq, maxfreq, pxs, wavrate, rotate, invert):
     img = Image.open(inpt).convert('L')
 
-    # rotate image if requested
+    # rotation de l'image de 90° si demandé
     if rotate:
       img = img.rotate(90)
 
-    # invert image if requested
+    # inversion de l'image si demandé
     if invert:
       img = ImageOps.invert(img)
 
+    # on écrit un fichier .wav avec les informations obtenues au dessus (image, rotation, couleurs, pixels, ...)
     output = wave.open(output, 'w')
+
+    #Tuple qui prend en paramètres (nchannels, sampwidth, framerate, nframes, comptype, compname)
     output.setparams((1, 2, wavrate, 0, 'NONE', 'not compressed'))
 
+    # calcul interval de fréquence
     freqrange = maxfreq - minfreq
+
+    #pas entre chaque frequence possible selon la taille de l'image
     interval = freqrange / img.size[1]
 
+    #taux d'onde/pixels
     fpx = wavrate // pxs
+
+    #data=liste de int
     data = array.array('h')
 
+    #calcul du temps de conversion image/spectre audio
     tm = timeit.default_timer()
 
     for x in range(img.size[0]):
@@ -72,6 +89,7 @@ def convert(inpt, output, minfreq, maxfreq, pxs, wavrate, rotate, invert):
             yinv = img.size[1] - y - 1
             amp = img.getpixel((x,y))
             if (amp > 0):
+                #génére un signal
                 row.append( genwave(yinv * interval + minfreq, amp, fpx, wavrate) )
 
         for i in range(fpx):
