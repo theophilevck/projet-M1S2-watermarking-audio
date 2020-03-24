@@ -6,99 +6,61 @@ import wave
 import sys
 
 
-def loadcompare( nomfichier: str, nomfichierwatermark: str ):
-    folder="Audio_files/Spectrology/"
-    extention=".wav"
-    extention2=".mp3"
-    path1=folder+nomfichier+extention
-    path2=folder+nomfichierwatermark+extention
     
-
-    spf1 = wave.open(path1, "r")
-    spf2 = wave.open(path2, "r")
-    fs = spf1.getframerate()
-
-    # Extract Raw Audio from Wav File
-    signal1 = spf1.readframes(-1)
-    signal1 = np.fromstring(signal1, "Int16")
-
-    signal2 = spf2.readframes(-1)
-    signal2 = np.fromstring(signal2, "Int16")
-        
-    Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
-    
-    figure = plt.figure(figsize = (10, 5))
-    plt.gcf().subplots_adjust(left = 0.1, bottom = 0.1,
-                           right = 0.9, top = 0.9, wspace = 0, hspace = 0.5)
-    axes = figure.add_subplot(2, 1, 1)
-    axes.set_xlabel('Time (s)')
-    axes.set_ylabel('Frequence(Hz)')
-    axes.set_title('without watermark')
-    plt.plot(Time, signal1)
-    
-    axes = figure.add_subplot(2, 1, 2)
-    axes.set_xlabel('Time (s)')
-    axes.set_ylabel(' Frequence(Hz)')
-    axes.set_title('with watermark')
-    plt.plot(Time, signal2)
-
-    plt.show()
-
-    
-def load( nomfichier: str ):
-    folder="Audio_files/" #/Spectrology/
+def load( nomfichier: str ): #fonction qui permet le chargement du .wav
+    folder="Audio_files/" 
     extention=".wav"
     path1=folder+nomfichier+extention
 
     spf1 = wave.open(path1, "r")
     return spf1
 
-def freqsignal (nomfichier: str):
-    spf=load( nomfichier )
-    fs = spf.getframerate()
+def freqsignal (nomfichier: str): 
+    spf=load( nomfichier ) #on charge le fichier
+    fs = spf.getframerate() #on recupere la frequence d echantillonage du fichier
 
-    # Extract Raw Audio from Wav File
+    
     signal1 = spf.readframes(-1)
-    signal1 = np.fromstring(signal1, "Int16")
+    signal1 = np.fromstring(signal1, "Int16") #on transforme le signale en une array a 1 dimention
 
-    Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
+    Time = np.linspace(0, len(signal1) / fs, num=len(signal1)) #on calcule la longeur du fichier pour l axe 
 
-    plt.figure(figsize = (10, 5))
-    plt.title( nomfichier+' frequence' )
+    plt.figure(figsize = (10, 5))   #creation et taille de la figure
+    plt.title( nomfichier+' frequence' ) #titre
     plt.xlabel('Time (s)')
     plt.ylabel('Frequence(Hz)')
     
-    plt.plot(Time, signal1,linewidth=0.5)
+    plt.plot(Time, signal1,linewidth=0.5) #on trace la representation frequentielle
     
     
 
 def FFTsignal (nomfichier: str):
 
     spf=load( nomfichier )
-    fs = spf.getframerate()
+    rate=spf.getframerate() 
+
     # Extract Raw Audio from Wav File
     signal1 = spf.readframes(-1)
-    signal1 = np.fromstring(signal1, "Int16")
-    rate=spf.getframerate()
+    signal1 = np.fromstring(signal1, "Int16")#identitique a la premeiere fonction
+
     
 
-
-    FFT = np.fft.fft(signal1)
-    FFT =np.absolute(FFT)
-    FFT=FFT/FFT.max()
+    FFT = np.fft.fft(signal1)       #on effectue une fast fourier transform sur le signale
+    FFT =np.absolute(FFT)           #on prend la valleur absolue de la FFT 
+    FFT=FFT/FFT.max()               
 
     n = FFT.size
     freq = np.zeros(n)
     
-    for k in range(n):
+    for k in range(n):              #on calcule chaque frequence
         freq[k] = 1.0/n*rate*k
     
-    plt.figure(figsize = (10, 5))
-    plt.vlines(freq,[0],FFT,'r')
+    plt.figure(figsize = (10, 5))       #creation et taille de la figure
+    plt.vlines(freq,[0],FFT,'r')        #on trace les frequence avec comme dubut 0 et comme fin la FFT
     plt.xlabel('f (Hz)')
     plt.ylabel('A')
-    plt.axis([0,0.5*rate,0,1])
-    return
+    plt.axis([0,0.5*rate,0,1])          #on met a l echelle 
+    
 
 
 
@@ -107,13 +69,12 @@ def graph_spectrogram(nomfichier: str):
     spf=load( nomfichier )
     frames = spf.readframes(-1)
     sound_info = pylab.fromstring(frames, 'int16')
-    frame_rate = spf.getframerate()
+    frame_rate = spf.getframerate()             #identique a la premeire fonction
 
    
-    pylab.figure(num=None, figsize=(10, 5))
-    
-    pylab.title('spectrogram of %r' % spf)
-    pylab.specgram(sound_info, Fs=frame_rate)
+    pylab.figure(num=None, figsize=(10, 5))     #creation et taille de la figure
+    pylab.title('spectrogram of %r' % spf)      
+    pylab.specgram(sound_info, Fs=frame_rate)   #on appele la fonction specgram qui trace le spertrograme
     
 			
 
@@ -122,7 +83,7 @@ def analyse(nomfichier: str):
     freqsignal(nomfichier)
     FFTsignal(nomfichier)
     graph_spectrogram(nomfichier)
-    plt.show() 
+    plt.show()                      #on affiche les different graphique qui on etait cree dans les fonction appeler
 
 
     
