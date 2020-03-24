@@ -83,13 +83,17 @@ def convert(inpt, output, minfreq, maxfreq, pxs, wavrate, rotate, invert):
     #calcul du temps de conversion image/spectre audio
     tm = timeit.default_timer()
 
+    # on cherche chaque pixel x,y
     for x in range(img.size[0]):
         row = []
         for y in range(img.size[1]):
             yinv = img.size[1] - y - 1
+            # récupére le canal de couleur du pixel (R,V,B)
             amp = img.getpixel((x,y))
             if (amp > 0):
-                #génére un signal
+                # génére un signal
+                # pour chacun de ces pixel on créé la frequence associée 
+                # l'amplitude doit etre déterminée selon la couleur du pixel
                 row.append( genwave(yinv * interval + minfreq, amp, fpx, wavrate) )
 
         for i in range(fpx):
@@ -110,6 +114,7 @@ def convert(inpt, output, minfreq, maxfreq, pxs, wavrate, rotate, invert):
     output.writeframes(data.tostring())
     output.close()
 
+    #calcul du temps de conversion image/spectre audio
     tms = timeit.default_timer()
 
     print("Conversion progress: 100%")
