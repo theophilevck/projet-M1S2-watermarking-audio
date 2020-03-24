@@ -66,9 +66,9 @@ def freqsignal (nomfichier: str):
     plt.xlabel('Time (s)')
     plt.ylabel('Frequence(Hz)')
     
-    plt.plot(Time, signal1)
+    plt.plot(Time, signal1,linewidth=0.5)
     
-    plt.show()
+    
 
 def FFTsignal (nomfichier: str):
 
@@ -77,30 +77,33 @@ def FFTsignal (nomfichier: str):
     # Extract Raw Audio from Wav File
     signal1 = spf.readframes(-1)
     signal1 = np.fromstring(signal1, "Int16")
+    rate=spf.getframerate()
     
 
 
-    Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
+    ##Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
+    FFT = np.fft.fft(signal1)
+    FFT =np.absolute(FFT)
+    FFT=FFT/FFT.max()
+
+    n = FFT.size
+    freq = np.zeros(n)
     
-    fft = np.fft.fft(signal1)
-    
-
-
-    T = Time[1] - Time[0]  # sampling interval 
-    N = signal1.size
-
-    # 1/T = frequency
-    f = np.linspace(0, 1 / T, N)
+    for k in range(n):
+        freq[k] = 1.0/n*rate*k
     
     plt.figure(figsize = (10, 5))
-    plt.title( nomfichier+' FFT' )
-    plt.ylabel("Amplitude")
-    plt.xlabel("Frequency [Hz]")
-    plt.plot(np.abs(fft)[:N // 2] * 1 / N,linewidth=0.5)
-    #plt.bar(f[:N // 2], np.abs(fft)[:N // 2] * 1 / N, width=1.5)  # 1 / N is a normalization factor// trop long
+    plt.vlines(freq,[0],FFT,'r')
+    plt.xlabel('f (Hz)')
+    plt.ylabel('A')
+    plt.axis([0,0.5*rate,0,1])
+    plt.plot(linewidth=0.3)
+			
 
-    
+def analyse(nomfichier: str):
 
+    freqsignal(nomfichier)
+    FFTsignal(nomfichier)
     plt.show() 
 
 
@@ -108,5 +111,5 @@ def FFTsignal (nomfichier: str):
 #freqsignal("sample-music-clean")
 #freqsignal("Mix2")
 #loadcompare("sample-music-clean","Mix2")
-FFTsignal("Mix2")
+analyse("Mix2")
 
