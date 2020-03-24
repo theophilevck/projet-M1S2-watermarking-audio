@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from scipy import signal
+import pylab
 import numpy as np
 import wave
 import sys
@@ -44,7 +46,7 @@ def loadcompare( nomfichier: str, nomfichierwatermark: str ):
 
     
 def load( nomfichier: str ):
-    folder="Audio_files/Spectrology/" #/Spectrology/
+    folder="Audio_files/" #/Spectrology/
     extention=".wav"
     path1=folder+nomfichier+extention
 
@@ -81,7 +83,6 @@ def FFTsignal (nomfichier: str):
     
 
 
-    ##Time = np.linspace(0, len(signal1) / fs, num=len(signal1))
     FFT = np.fft.fft(signal1)
     FFT =np.absolute(FFT)
     FFT=FFT/FFT.max()
@@ -97,19 +98,33 @@ def FFTsignal (nomfichier: str):
     plt.xlabel('f (Hz)')
     plt.ylabel('A')
     plt.axis([0,0.5*rate,0,1])
-    plt.plot(linewidth=0.3)
+    return
+
+
+
+
+def graph_spectrogram(nomfichier: str):
+    spf=load( nomfichier )
+    frames = spf.readframes(-1)
+    sound_info = pylab.fromstring(frames, 'int16')
+    frame_rate = spf.getframerate()
+
+   
+    pylab.figure(num=None, figsize=(10, 5))
+    
+    pylab.title('spectrogram of %r' % spf)
+    pylab.specgram(sound_info, Fs=frame_rate)
+    
 			
 
 def analyse(nomfichier: str):
 
     freqsignal(nomfichier)
     FFTsignal(nomfichier)
+    graph_spectrogram(nomfichier)
     plt.show() 
 
 
     
-#freqsignal("sample-music-clean")
-#freqsignal("Mix2")
-#loadcompare("sample-music-clean","Mix2")
-analyse("Mix2")
+analyse("Spectrology\Mix2")
 
