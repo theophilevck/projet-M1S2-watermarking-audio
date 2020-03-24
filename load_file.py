@@ -16,14 +16,17 @@ def load( nomfichier: str ): #fonction qui permet le chargement du .wav
     return spf1
 
 def freqsignal (nomfichier: str): 
-    spf=load( nomfichier ) #on charge le fichier
-    fs = spf.getframerate() #on recupere la frequence d echantillonage du fichier
 
-    
-    signal1 = spf.readframes(-1)
-    signal1 = np.fromstring(signal1, "Int16") #on transforme le signale en une array a 1 dimention
+    sound=load( nomfichier )#on charge le fichier
+    rate=sound.getframerate() #on recupere la frequence d echantillonage du fichier
 
-    Time = np.linspace(0, len(signal1) / fs, num=len(signal1)) #on calcule la longeur du fichier pour l axe 
+    signalD = bytearray(b'')
+    for i in range(0, sound.getnframes()):
+        signalD += sound.readframes(1)[:2]
+
+    signal1 = np.fromstring(bytes(signalD), "Int16")
+
+    Time = np.linspace(0, len(signal1) / rate, num=len(signal1)) #on calcule la longeur du fichier pour l axe 
 
     plt.figure(figsize = (10, 5))   #creation et taille de la figure
     plt.title( nomfichier+' frequence' ) #titre
@@ -36,14 +39,14 @@ def freqsignal (nomfichier: str):
 
 def FFTsignal (nomfichier: str):
 
-    spf=load( nomfichier )
-    rate=spf.getframerate() 
+    sound=load( nomfichier )
+    rate=sound.getframerate() 
 
-    # Extract Raw Audio from Wav File
-    signal1 = spf.readframes(-1)
-    signal1 = np.fromstring(signal1, "Int16")#identitique a la premeiere fonction
+    signalD = bytearray(b'')
+    for i in range(0, sound.getnframes()):
+        signalD += sound.readframes(1)[:2]
 
-    
+    signal1 = np.fromstring(bytes(signalD), "Int16")
 
     FFT = np.fft.fft(signal1)       #on effectue une fast fourier transform sur le signale
     FFT =np.absolute(FFT)           #on prend la valleur absolue de la FFT 
@@ -66,14 +69,19 @@ def FFTsignal (nomfichier: str):
 
 
 def graph_spectrogram(nomfichier: str):
-    spf=load( nomfichier )
-    frames = spf.readframes(-1)
-    sound_info = pylab.fromstring(frames, 'int16')
-    frame_rate = spf.getframerate()             #identique a la premeire fonction
+    sound=load( nomfichier ) 
+
+    signalD = bytearray(b'')
+    for i in range(0, sound.getnframes()):
+        signalD += sound.readframes(1)[:2]
+
+    frames = sound.readframes(-1)
+    sound_info = np.fromstring(bytes(signalD), "Int16")
+    frame_rate = sound.getframerate()             #identique a la premeire fonction
 
    
     pylab.figure(num=None, figsize=(10, 5))     #creation et taille de la figure
-    pylab.title('spectrogram of %r' % spf)      
+    pylab.title('spectrogram of %r' % sound)      
     pylab.specgram(sound_info, Fs=frame_rate)   #on appele la fonction specgram qui trace le spertrograme
     
 			
