@@ -29,9 +29,27 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     watermark_bin += '00000000'
 
     watermark_segmented = ''
-    for i in watermark_bin:
+    amp_smoothing = []  # Mixer effectif
+    for i in range(0, len(watermark_bin)):
+        bit = 1 if watermark_bin[i] == '1' else 0
+        if i == 0:
+            bit_prev = 1 if i == '1' else 0
+            bit_next = 1 if watermark_bin[i+1] == '1' else 0
+        elif i == len(watermark_bin)-1:
+            bit_prev = 1 if watermark_bin[i-1] == '1' else 0
+            bit_next = 1 if i == '1' else 0
+        else:
+            bit_prev = 1 if watermark_bin[i-1] == '1' else 0
+            bit_next = 1 if watermark_bin[i+1] == '1' else 0
+
         for k in range(0, segment_length - 1):  # On allonge le watermark pour obtenir le mixer correct (cf doc)
-            watermark_segmented += i
+            watermark_segmented += watermark_bin[i]
+            if k < segment_length//4 and bit != bit_prev:
+                amp_smoothing.append(0.5 + (bit-0.5) * np.cos((segment_length//4 - k) * np.pi / (2 * segment_length//4)))
+            elif k > 3 * (segment_length//4) and bit != bit_next:
+                amp_smoothing.append(0.5 + (bit-0.5) * np.cos((k - 3 * (segment_length//4))  * np.pi / (2 * segment_length//4)))
+            else:
+                amp_smoothing.append(bit)
 
     print("Binary Watermark: " + watermark_bin)
     # print("Segmented Watermark: " + watermark_segmented)
@@ -60,36 +78,45 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
 
         sound_new.writeframes(byte_new)
 
-        # Si nous sommes a la fin de la chaine, on repete
-        water_cursor = (water_cursor + 1) % len(watermark_segmented)
-
         # Calcul de l'amplification de l'echo
-        amp_int = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha) for j in range(0, channel_count)]
-        amp_byte = bytearray(sample_size * channel_count)
+        amp_int1 = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha * amp_smoothing[water_cursor]) for j in range(0, channel_count)]
+        amp_int0 = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha * np.abs(1 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
+        amp_byte1 = bytearray(sample_size * channel_count)
+        amp_byte0 = bytearray(sample_size * channel_count)
         for k in range(0, channel_count):
             for j in range(0, sample_size):
-                amp_byte[j + sample_size * k] = amp_int[k] % 256
-                amp_int[k] = amp_int[k] // 256
+                amp_byte1[j + sample_size * k] = amp_int1[k] % 256
+                amp_int1[k] = amp_int1[k] // 256
+                amp_byte0[j + sample_size * k] = amp_int0[k] % 256
+                amp_int0[k] = amp_int1[k] // 256
 
         # Application de l'echo dans la file d'attente
         signal_delayed.insert(0, bytearray(sample_size * channel_count))  # Data vide
 
-        delay_active = 0
+        # Si nous sommes a la fin de la chaine, on repete
+        water_cursor = (water_cursor + 1) % len(watermark_segmented)
 
-        if bit == 1:
-            delay_active = delay_1
-        else:  # bit == 0
-            delay_active = delay_0
-
+        # Add Mixage Bit 1
         for k in range(0, channel_count):
             retenue = 0
             for j in range(0, sample_size):
-                temp_retenue = (signal_delayed[-delay_active][j + sample_size * k] + amp_byte[j + sample_size * k]) // 256 # D'abord la retenue car on change signal_delayed[...] apres!
-                signal_delayed[-delay_active][j + sample_size * k] = (signal_delayed[-delay_active][j + sample_size * k] + amp_byte[j + sample_size * k] + retenue) % 256
+                temp_retenue = (signal_delayed[-delay_1][j + sample_size * k] + amp_byte1[j + sample_size * k]) // 256 # D'abord la retenue car on change signal_delayed[...] apres!
+                signal_delayed[-delay_1][j + sample_size * k] = (signal_delayed[-delay_1][j + sample_size * k] + amp_byte1[j + sample_size * k] + retenue) % 256
                 retenue = temp_retenue
             if retenue >= 1:  # Si on plafonne, on plafonne
                 for j in range(0, sample_size):
-                    signal_delayed[-delay_active][j + sample_size * k] = 255
+                    signal_delayed[-delay_1][j + sample_size * k] = 255
+
+        # Add Mixage bit 0
+        for k in range(0, channel_count):
+            retenue = 0
+            for j in range(0, sample_size):
+                temp_retenue = (signal_delayed[-delay_0][j + sample_size * k] + amp_byte0[j + sample_size * k]) // 256 # D'abord la retenue car on change signal_delayed[...] apres!
+                signal_delayed[-delay_0][j + sample_size * k] = (signal_delayed[-delay_0][j + sample_size * k] + amp_byte0[j + sample_size * k] + retenue) % 256
+                retenue = temp_retenue
+            if retenue >= 1:  # Si on plafonne, on plafonne
+                for j in range(0, sample_size):
+                    signal_delayed[-delay_0][j + sample_size * k] = 255
     return watermark_bin
 
 def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
@@ -104,8 +131,8 @@ def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 1
     decoded = ''
     for i in range(0, sound.getnframes()//segment_length):
         fft = np.fft.fft(signal1[segment_length*i:segment_length*(i+1)])
-        cepstrum = np.abs(np.fft.ifft(np.log(np.abs(fft))))
-        decoded += '0' if (cepstrum[delay_0 + 1] > cepstrum[delay_1 + 1]) else '1'
+        cepstrum = np.fft.ifft(np.log(np.abs(fft)))
+        decoded += '0' if (cepstrum[delay_0 ] > cepstrum[delay_1 ]) else '1'
 
         """plt.figure(figsize=(10, 5))
         plt.ylabel("Amplitude")
@@ -138,9 +165,9 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('Audio_files/wilhelmbigger_samps', 'Echo hiding cest bien', 0.5, 128, 256, 1024)
+a= echo_apply('Audio_files/wilhelm', 'Echo hiding cest bien', 0.5, 150, 250, 1024)
 
-b= test('Audio_files/wilhelmbigger_samps_watermarked_echo', 128, 256, 1024)
+b= test('Audio_files/wilhelm_watermarked_echo', 150, 250, 1024)
 
 error = 0
 for i in range(0, len(b)):
