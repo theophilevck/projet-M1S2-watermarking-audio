@@ -59,8 +59,6 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     signal_delayed = [bytearray(sample_size * channel_count) for i in range(0, max(delay_0,
                                                          delay_1))]  # Utilise pour les delais 1 et 0 ( Pour 1 on fera signal_delayed[-delai_1]...)
     for i in range(0, sound.getnframes()):
-        if i == sound.getnframes() // 2 and sound.getnchannels() == 2:
-            water_cursor = 0  # Selon le wav, la seconde moitie des frames correspondent au channel 2, on reboot
         bit = 1 if watermark_segmented[water_cursor] == "1" else 0
 
         byte_4 = sound.readframes(1)
@@ -165,9 +163,9 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('Audio_files/wilhelm', 'Echo hiding cest bien', 0.5, 150, 250, 1024)
+a= echo_apply('../Audio_files/wilhelm', 'Echo hiding cest bien', 0.5, 64, 128, 512)
 
-b= test('Audio_files/wilhelm_watermarked_echo', 150, 250, 1024)
+b= test('../Audio_files/wilhelm_watermarked_echo', 64, 128, 512)
 
 error = 0
 for i in range(0, len(b)):
