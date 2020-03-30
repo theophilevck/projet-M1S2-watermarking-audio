@@ -27,8 +27,6 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
             # Nous faisons un & binaire entre le MSB et "128" pour savoir si nous écrivons un 1 ou 0
             # (Decalage de j pour s'occuper de chaque bit de l'octet)
             watermark_bin += '1' if ((i << j) & 128) > 0 else '0'
-    # Nous mettons le caractere de fin de chaine a la fin du watermark pour en faciliter la lecture apres coup '\00'
-    watermark_bin += '00000000'
 
     watermark_segmented = ''
     amp_smoothing = []  # Mixer effectif
@@ -44,7 +42,7 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
             bit_prev = 1 if watermark_bin[i-1] == '1' else 0
             bit_next = 1 if watermark_bin[i+1] == '1' else 0
 
-        for k in range(0, segment_length - 1):  # On allonge le watermark pour obtenir le mixer correct (cf doc)
+        for k in range(0, segment_length):  # On allonge le watermark pour obtenir le mixer correct (cf doc)
             watermark_segmented += watermark_bin[i]
             if k < segment_length//4 and bit != bit_prev:
                 amp_smoothing.append(0.5 + (bit-0.5) * np.cos((segment_length//4 - k) * np.pi / (2 * segment_length//4)))
@@ -63,12 +61,9 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     write_temp = bytearray(b'')
     read_temp = sound.readframes(-1)
 
-    tempo = time.time_ns()
+    tempo = time.perf_counter_ns()
 
     for i in range(0, frames_number):
-
-        print(i, " : ", time.time_ns() - tempo)
-        tempo = time.time_ns()
 
         bit = 1 if watermark_segmented[water_cursor] == "1" else 0
 
@@ -88,16 +83,13 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
         write_temp += byte_new
 
         # Calcul de l'amplification de l'echo
-        amp_int1 = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha * amp_smoothing[water_cursor]) for j in range(0, channel_count)]
-        amp_int0 = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha * np.abs(1 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
-        amp_byte1 = bytearray(sample_size * channel_count)
-        amp_byte0 = bytearray(sample_size * channel_count)
+        amp_int1 = [int(int.from_bytes(byte_4[j * sample_size : (j * sample_size) + 2], "little") * alpha * amp_smoothing[water_cursor]) for j in range(0, channel_count)]
+        amp_int0 = [int(int.from_bytes(byte_4[j * sample_size : (j * sample_size) + 2], "little") * alpha * np.abs(1 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
+        amp_byte1 = bytearray()
+        amp_byte0 = bytearray()
         for k in range(0, channel_count):
-            for j in range(0, sample_size):
-                amp_byte1[j + sample_size * k] = amp_int1[k] % 256
-                amp_int1[k] = amp_int1[k] // 256
-                amp_byte0[j + sample_size * k] = amp_int0[k] % 256
-                amp_int0[k] = amp_int1[k] // 256
+            amp_byte1 += bytearray(amp_int1[k].to_bytes(sample_size, 'little'))
+            amp_byte0 += bytearray(amp_int0[k].to_bytes(sample_size, 'little'))
 
         # Application de l'echo dans la file d'attente
         signal_delayed.insert(0, bytearray(sample_size * channel_count))  # Data vide
@@ -176,9 +168,9 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('../Audio_files/matermagna', 'Echo', 0.5, 256, 384, 1024)
+a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.5, 256, 512, 2048)
 
-b= test('../Audio_files/matermagna_watermarked_echo', 256, 384, 1024)
+b= test('../Audio_files/wilhelm_watermarked_echo', 256, 512, 2048)
 
 error = 0
 for i in range(0, min(len(a), len(b))):
