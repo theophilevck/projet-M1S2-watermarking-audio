@@ -20,7 +20,7 @@ def correlation(x, y):
         sumy_square += y[i]**2
         sum_product += x[i] * y[i]
 
-    return nvalues * sum_product - (sumx * sumy) / np.sqrt((nvalues * sumx_square - sumx**2) * (nvalues * sumy_square - sumy**2))
+    return nvalues * sum_product - (sumx * sumy) / np.sqrt(float((nvalues * sumx_square - sumx**2) * (nvalues * sumy_square - sumy**2)))
 
 
 def dss_apply(file: str, watermark: str, skey: int, alpha: float = 1):
@@ -51,38 +51,39 @@ def dss_apply(file: str, watermark: str, skey: int, alpha: float = 1):
     bloc_size = sound.getnframes() // len(watermark_bin)
     random.seed(skey)
 
+    write_temp = bytearray(b'')
+    read_temp = sound.readframes(-1)
+
     for ii in range(0, len(watermark_bin)):
         bit = 1 if watermark_bin[ii] == "1" else 0
 
-        pseudonoise = random.getrandbits(bloc_size)
+        pseudonoise = [random.randint(0,1) for j in range(0, bloc_size)]
 
         for ij in range(0, bloc_size):
-            byte_4 = sound.readframes(1)
+            byte_4 = read_temp[sample_size * channel_count * (ij + ii * bloc_size):sample_size * channel_count * (ij + ii * bloc_size + 1)]
+            int_4 = [int.from_bytes(byte_4[j * sample_size:(j+1) * sample_size], "little") for j in range(0, channel_count)]
             byte_new = bytearray(b'')
 
-            adding_int = int(alpha * (2 * (pseudonoise % 2) - 1) * (bit - 0.5) * (-2))  # Normalization
+            adding_int = int(alpha * (2 * pseudonoise[ij] - 1) * (bit - 0.5) * (-2))  # Normalization
 
             # Calculate new byte following, actual sound, pseudo noise and alpha
             for k in range(0, channel_count):
-                byte_int = int.from_bytes(byte_4[sample_size * k:sample_size * k + 2], "little")
+                byte_int = int_4[k]
 
                 byte_int += adding_int
                 if byte_int < 0:
                     byte_int = 0
 
                 if byte_int >= (1 << 8*sample_size):
-                    for j in range(0, sample_size):
-                        byte_new += bytes([255])
-                    continue
+                    byte_int = (1 << 8*sample_size) - 1
 
                 # Else
-                byte_new += byte_int.to_bytes(sample_size, "little")
+                write_temp += byte_int.to_bytes(sample_size, "little")
 
-            sound_new.writeframes(bytes(byte_new))
-            pseudonoise /= 2
-
+    sound_new.writeframes(write_temp)
     # On ajoute les derniers samples
     sound_new.writeframes(sound.readframes(sound.getnframes() - bloc_size * len(watermark_bin)))
+    return watermark_bin
 
 
 def dss_read(file: str, skey: int, size_watermark: int):
@@ -104,7 +105,7 @@ def dss_read(file: str, skey: int, size_watermark: int):
     watermark_bin = ''
 
     for ii in range(0, size_watermark):
-        pseudonoise = random.getrandbits(bloc_size)
+        pseudonoise = [random.randint(0,1) for j in range(0, bloc_size)]
 
         # Recup Big sample
         pn = []
@@ -112,13 +113,21 @@ def dss_read(file: str, skey: int, size_watermark: int):
         for i in range(0, bloc_size):
             # Lire les samples en int
             cw += [int.from_bytes(sound.readframes(1)[:sample_size], "little")]
-            pn += [2 * (pseudonoise % 2) - 1]
-            pseudonoise /= 2
+            pn += [2 * pseudonoise[i] - 1]
+        print(cw)
 
         watermark_bin += '1' if correlation(cw, pn) < 0 else '0'
 
     return watermark_bin
 
 
-dss_apply('../Audio_files/wilhelm', 'Bonjour', 42, 10000)
-print('Binary Wat Found: ' + dss_read('../Audio_files/wilhelm_watermarked_dss', 42, 7*8))
+a = dss_apply('../Audio_files/wilhelm', 'Bonjour', 42, 4096)
+b = dss_read('../Audio_files/wilhelm_watermarked_dss', 42, 7*8)
+print('Binary Wat Found: ' + b)
+
+error = 0
+for i in range(0, min(len(a), len(b))):
+    if b[i] != a[i]:
+        error += 1
+error /= min(len(a), len(b))
+print('Error rate: ', error)

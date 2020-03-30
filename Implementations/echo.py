@@ -68,7 +68,7 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
         bit = 1 if watermark_segmented[water_cursor] == "1" else 0
 
         byte_4 = read_temp[sample_size * channel_count * i:sample_size * channel_count * (i+1)]
-        int_4 = [int.from_bytes(byte_4[j * sample_size:(j * sample_size)+2], "little") for j in range(0, channel_count)]
+        int_4 = [int.from_bytes(byte_4[j * sample_size:(j+1) * sample_size], "little") for j in range(0, channel_count)]
 
         val = signal_delayed.pop()  # Ajoute les valeurs d'echo
 
@@ -141,9 +141,9 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.5, 128, 256, 1024)
+a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.1, 128, 256, 2048)
 
-b= test('../Audio_files/wilhelm_watermarked_echo', 128, 256, 1024)
+b= test('../Audio_files/wilhelm_watermarked_echo', 128, 256, 2048)
 
 error = 0
 for i in range(0, min(len(a), len(b))):
