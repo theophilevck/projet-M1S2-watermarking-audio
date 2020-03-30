@@ -34,7 +34,7 @@ def lsb_apply(file: str, watermark: str):
 
         byte_4 = sound.readframes(1)
         # On met le dernier bit du sample a notre valeur du watermark...
-        byte_new = bytes([byte_4[0] - byte_4[0] % 2 + bit, byte_4[1], byte_4[2], byte_4[3]])
+        byte_new = bytes([byte_4[0] - byte_4[0] % 2 + bit, byte_4[1], byte_4[2] - byte_4[2] % 2 + bit, byte_4[3]])
 
         sound_new.writeframes(byte_new)  # écriture frame
 

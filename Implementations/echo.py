@@ -1,6 +1,7 @@
 import wave
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 
 def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
@@ -18,6 +19,7 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     sound_new.setparams(sound.getparams())
     sample_size = sound.getsampwidth()
     channel_count = sound.getnchannels()
+    frames_number = sound.getnframes()
 
     watermark_bin = ''
     for i in bytearray(watermark, encoding='utf-8'):
@@ -58,10 +60,19 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     water_cursor = 0
     signal_delayed = [bytearray(sample_size * channel_count) for i in range(0, max(delay_0,
                                                          delay_1))]  # Utilise pour les delais 1 et 0 ( Pour 1 on fera signal_delayed[-delai_1]...)
-    for i in range(0, sound.getnframes()):
+    write_temp = bytearray(b'')
+    read_temp = sound.readframes(-1)
+
+    tempo = time.time_ns()
+
+    for i in range(0, frames_number):
+
+        print(i, " : ", time.time_ns() - tempo)
+        tempo = time.time_ns()
+
         bit = 1 if watermark_segmented[water_cursor] == "1" else 0
 
-        byte_4 = sound.readframes(1)
+        byte_4 = read_temp[sample_size * channel_count * i:sample_size * channel_count * (i+1)]
 
         val = signal_delayed.pop()  # Ajoute les valeurs d'echo
         byte_new = bytearray(sample_size * channel_count)
@@ -74,7 +85,7 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
                 for j in range(0, sample_size):
                     byte_new[j + sample_size * k] = 255
 
-        sound_new.writeframes(byte_new)
+        write_temp += byte_new
 
         # Calcul de l'amplification de l'echo
         amp_int1 = [int(np.frombuffer(byte_4[j * sample_size : (j * sample_size) + 2], np.int16)[0] * alpha * amp_smoothing[water_cursor]) for j in range(0, channel_count)]
@@ -115,6 +126,8 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
             if retenue >= 1:  # Si on plafonne, on plafonne
                 for j in range(0, sample_size):
                     signal_delayed[-delay_0][j + sample_size * k] = 255
+
+    sound_new.writeframes(write_temp)
     return watermark_bin
 
 def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
@@ -163,12 +176,12 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('../Audio_files/wilhelm', 'Echo hiding cest bien', 0.5, 64, 128, 512)
+a= echo_apply('../Audio_files/matermagna', 'Echo', 0.5, 256, 384, 1024)
 
-b= test('../Audio_files/wilhelm_watermarked_echo', 64, 128, 512)
+b= test('../Audio_files/matermagna_watermarked_echo', 256, 384, 1024)
 
 error = 0
-for i in range(0, len(b)):
+for i in range(0, min(len(a), len(b))):
     if b[i] != a[i]:
         error += 1
 error /= len(b)
