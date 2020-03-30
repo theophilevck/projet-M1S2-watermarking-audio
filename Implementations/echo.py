@@ -135,11 +135,9 @@ def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 1
     for i in range(0, sound.getnframes()//segment_length):
         fft = np.fft.fft(signal1[segment_length*i:segment_length*(i+1)])
         cepstrum = np.fft.ifft(np.log(np.abs(fft)))
-        decoded += '0' if (cepstrum[delay_0 ] > cepstrum[delay_1 ]) else '1'
+        decoded += '0' if (cepstrum[delay_0 +1] > cepstrum[delay_1 +1]) else '1'
 
         """plt.figure(figsize=(10, 5))
-        plt.ylabel("Amplitude")
-        plt.xlabel("Frequency [Hz]")
         plt.plot(cepstrum[10:min(delay_1+delay_0,segment_length)], linewidth=0.5,)
         plt.show()"""
 
@@ -168,13 +166,13 @@ def higher_sampwidth(file: str, new_width: int):
 
         sound_new.writeframes(byte_new)
 
-a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.5, 256, 512, 2048)
+a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.1, 8, 32, 1024)
 
-b= test('../Audio_files/wilhelm_watermarked_echo', 256, 512, 2048)
+b= test('../Audio_files/wilhelm_watermarked_echo', 8, 32, 1024)
 
 error = 0
 for i in range(0, min(len(a), len(b))):
     if b[i] != a[i]:
         error += 1
-error /= len(b)
+error /= min(len(a), len(b))
 print('Error rate: ', error)
