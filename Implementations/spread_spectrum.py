@@ -114,7 +114,6 @@ def dss_read(file: str, skey: int, size_watermark: int):
             # Lire les samples en int
             cw += [int.from_bytes(sound.readframes(1)[:sample_size], "little")]
             pn += [2 * pseudonoise[i] - 1]
-        print(cw)
 
         watermark_bin += '1' if correlation(cw, pn) < 0 else '0'
 

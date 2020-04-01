@@ -4,14 +4,16 @@ import numpy as np
 import time
 
 
-def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
+def echo_single_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100, bipolar: bool = False):
     """
-    Cache un watermark dans un fichier audio par methode d'Echo Hiding
-    :param file: Le nom du fichier a  watermarke ( Ne pas mettre l'extension)
+    Cache un watermark dans un fichier audio par methode d'Echo Hiding SINGLE OU BIPOLAIRE
+    :param file: Le nom du fichier a  watermarke
     :param watermark: Le Watermark a appliquer (String)
     :param alpha: amplitude des echos
     :param delay_0: Delai de decalage pour les bits 0
     :param delay_1: Delai de decalage pour les bits 1
+    :param segment_length: Taille des segments dans lesquels nous cachons UN bit
+    :param bipolar: Devons-nous utiliser la methode bipolaire?
     """
     sound = wave.open(file + '.wav', 'r')  # lecture d'un fichier audio
     sound_new = wave.open(file + '_watermarked_echo.wav', 'w')
@@ -51,6 +53,11 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
             else:
                 amp_smoothing.append(bit)
 
+            if bipolar:
+                # Le principe du Bipolaire est de ne pas seulement ajouter un echo alpha selon le bit demande
+                # Mais aussi de retirer l'echo du bit contraire de alpha/2 (On a juste a normaliser notre mixer entre -0.5 et 0.5)
+                amp_smoothing[-1] -= 0.5
+
     print("Binary Watermark: " + watermark_bin)
     # print("Segmented Watermark: " + watermark_segmented)
 
@@ -73,11 +80,14 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
         val = signal_delayed.pop()  # Ajoute les valeurs d'echo
 
         for k in range(0, channel_count):
-            write_temp += bytearray((min(int_4[k] + val[k], (1 << sample_size * 8) - 1)).to_bytes(sample_size, 'little'))
+            write_temp += bytearray((min(max(int_4[k] + val[k], 0), (1 << sample_size * 8) - 1)).to_bytes(sample_size, 'little'))
 
         # Calcul de l'amplification de l'echo
         amp_int1 = [int(int_4[j] * alpha * amp_smoothing[water_cursor]) for j in range(0, channel_count)]
-        amp_int0 = [int(int_4[j] * alpha * np.abs(1 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
+        if not bipolar:
+            amp_int0 = [int(int_4[j] * alpha * np.abs(1 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
+        else:  # A normalisation differente, inverse different
+            amp_int0 = [int(int_4[j] * alpha * (0 - amp_smoothing[water_cursor])) for j in range(0, channel_count)]
 
         # Application de l'echo dans la file d'attente
         signal_delayed.insert(0, [0, 0])  # Data vide
@@ -96,7 +106,7 @@ def echo_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, 
     sound_new.writeframes(write_temp)
     return watermark_bin
 
-def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
+def echo_single_decode(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
     sound = wave.open(file + '.wav', 'r')  # lecture d'un fichier audio
     sample_size = sound.getsampwidth()
     channel_count = sound.getnchannels()
@@ -119,31 +129,21 @@ def test(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: int = 1
     print('Binary Watermark: ' + decoded)
     return decoded
 
+def echo_bipolar_apply(file: str, watermark: str, alpha: float = 0.1, delay_0: int = 5, delay_1: int = 10, segment_length: int = 100):
+    """
+    Cache un watermark dans un fichier audio par methode d'Echo Hiding BIPOLAIRE
+    :param file: Le nom du fichier a  watermarke
+    :param watermark: Le Watermark a appliquer (String)
+    :param alpha: amplitude des echos
+    :param delay_0: Delai de decalage pour les bits 0
+    :param delay_1: Delai de decalage pour les bits 1
+    """
+    pass
 
-def higher_sampwidth(file: str, new_width: int):
-    sound = wave.open(file + '.wav', 'r')  # lecture d'un fichier audio
-    sound_new = wave.open(file + 'bigger_samps.wav', 'w')
 
-    sound_new.setparams(sound.getparams())
-    sound_new.setsampwidth(new_width)
+a = echo_single_apply('../Audio_files/wilhelm', 'Echo', 0.1, 128, 256, 2048, True)
 
-    for i in range(0, sound.getnframes()):
-
-        byte_4 = sound.readframes(1)
-
-        byte_new = bytearray()
-        for k in range(0, sound.getnchannels()):
-            temp = 0
-            for j in range(0, sound.getsampwidth()):
-                byte_new += bytearray([byte_4[j + sound.getsampwidth() * k]])
-                temp += 1
-            byte_new += bytes(max(0, new_width - temp))
-
-        sound_new.writeframes(byte_new)
-
-a= echo_apply('../Audio_files/wilhelm', 'Echo', 0.1, 128, 256, 2048)
-
-b= test('../Audio_files/wilhelm_watermarked_echo', 128, 256, 2048)
+b = echo_single_decode('../Audio_files/wilhelm_watermarked_echo', 128, 256, 2048)
 
 error = 0
 for i in range(0, min(len(a), len(b))):
