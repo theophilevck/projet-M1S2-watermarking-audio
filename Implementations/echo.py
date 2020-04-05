@@ -231,6 +231,7 @@ def echo_decode(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: 
     for i in range(0, sound.getnframes()//segment_length):
         fft = np.fft.fft(signalD[segment_length*i:segment_length*(i+1)])
         cepstrum = np.fft.ifft(np.log(np.abs(fft)))
+        #cepstrum[0] = 0
         decoded += '0' if (cepstrum[delay_0] > cepstrum[delay_1]) else '1'
 
         """plt.figure(figsize=(10, 5))
@@ -240,9 +241,9 @@ def echo_decode(file: str, delay_0: int = 5, delay_1: int = 10, segment_length: 
     print('Binary Watermark: ' + decoded)
     return decoded
 
-a = echo_backward_forward_apply('../Audio_files/wilhelm', 'Echo', 0.1, 128, 256, 2048, True)
+a = echo_single_apply('../Audio_files/wilhelm', 'Bonjour', 0.1, 128, 256, 1024, False)
 
-b = echo_decode('../Audio_files/wilhelm_watermarked_bfecho', 128, 256, 2048)
+b = echo_decode('../Audio_files/wilhelm_watermarked_echo', 128, 256, 1024)
 
 error = 0
 for i in range(0, min(len(a), len(b))):
